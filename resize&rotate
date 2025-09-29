@@ -1,0 +1,158 @@
+import cv2
+import numpy as np
+from google.colab.patches import cv2_imshow
+import ipywidgets as widgets
+from IPython.display import display
+
+def resize_image(image, scale_percent, direction):
+    width = int(image.shape[1] * scale_percent / 100)
+    height = int(image.shape[0] * scale_percent / 100)
+    dim = (width, height)
+
+    if direction == 'up':
+        resized_image = cv2.resize(image, dim, interpolation=cv2.INTER_AREA)
+    elif direction == 'down':
+        resized_image = cv2.resize(image, dim, interpolation=cv2.INTER_AREA)
+    elif direction == 'horizontal':
+        resized_image = cv2.resize(image, (width, image.shape[0]), interpolation=cv2.INTER_AREA)
+    elif direction == 'vertical':
+        resized_image = cv2.resize(image, (image.shape[1], height), interpolation=cv2.INTER_AREA)
+    else:
+        resized_image = image # No change if direction is invalid
+
+    return resized_image
+
+def rotate_image(image, angle):
+    (h, w) = image.shape[:2]
+    center = (w / 2, h / 2)
+    M = cv2.getRotationMatrix2D(center, angle, 1.0)
+    rotated_image = cv2.warpAffine(image, M, (w, h))
+    return rotated_image
+
+def process_image(image_path, image_type, operation, scale_percent=None, angle=None):
+    if image_type == 'binary':
+        image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+        _, image = cv2.threshold(image, 127, 255, cv2.THRESH_BINARY)
+    elif image_type == 'gray':
+        image = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    elif image_type == 'color':
+        image = cv2.imread(image_path, cv2.IMREAD_COLOR)
+    else:
+        print("Invalid image type.")
+        return None
+
+    if image is None:
+        print("Error loading image.")
+        return None
+
+    if operation == 'resize':
+        if scale_percent is not None and angle is not None: # angle is used as direction here in the original function, which is confusing. Let's keep it for now but the menu will clarify
+            resized_image = resize_image(image, scale_percent, angle)
+            return resized_image
+        else:
+            print("Please specify a scale percentage and direction for resizing.")
+            return None
+
+    elif operation == 'rotate':
+        if angle is not None and scale_percent is None:
+            rotated_image = rotate_image(image, angle)
+            return rotated_image
+        else:
+            print("Please specify an angle for rotation.")
+            return None
+
+    else:
+        print("Invalid operation.")
+        return None
+
+
+image_type_dropdown = widgets.Dropdown(
+    options=['binary', 'gray', 'color'],
+    description='Image Type:',
+    disabled=False,
+)
+
+operation_dropdown = widgets.Dropdown(
+    options=['resize', 'rotate'],
+    description='Operation:',
+    disabled=False,
+)
+
+scale_percent_slider = widgets.IntSlider(
+    value=100,
+    min=10,
+    max=200,
+    step=10,
+    description='Scale %:',
+    disabled=False,
+    continuous_update=False,
+    orientation='horizontal',
+    readout=True,
+    readout_format='d'
+)
+
+resize_direction_dropdown = widgets.Dropdown(
+    options=['up', 'down', 'horizontal', 'vertical'],
+    description='Direction:',
+    disabled=False,
+)
+
+
+angle_slider = widgets.IntSlider(
+    value=0,
+    min=-180,
+    max=180,
+    step=1,
+    description='Angle (°):',
+    disabled=False,
+    continuous_update=False,
+    orientation='horizontal',
+    readout=True,
+    readout_format='d'
+)
+
+process_button = widgets.Button(description="Process Image")
+
+output_widget = widgets.Output()
+
+def on_process_button_clicked(b):
+    with output_widget:
+        output_widget.clear_output()
+        selected_image_type = image_type_dropdown.value
+        selected_operation = operation_dropdown.value
+        image_path = '/content/' # You will need to change this path based on the selected image type or provide a way to input it
+
+        # Example image paths (replace with actual paths or a mechanism to select files)
+        if selected_image_type == 'binary':
+             image_path += 'binary_img.png' # Replace with your binary image path
+        elif selected_image_type == 'gray':
+             image_path += 'gray_img.png' # Replace with your gray image path
+        elif selected_image_type == 'color':
+             image_path += 'color_img.png' # Replace with your color image path
+
+
+        processed_image = None
+        if selected_operation == 'resize':
+            selected_scale_percent = scale_percent_slider.value
+            selected_direction = resize_direction_dropdown.value
+            processed_image = process_image(image_path, selected_image_type, selected_operation, scale_percent=selected_scale_percent, angle=selected_direction) # Passing direction as angle as per original function
+
+        elif selected_operation == 'rotate':
+            selected_angle = angle_slider.value
+            processed_image = process_image(image_path, selected_image_type, selected_operation, angle=selected_angle)
+
+        if processed_image is not None:
+            cv2_imshow(processed_image)
+
+
+process_button.on_click(on_process_button_clicked)
+
+widgets.VBox([
+    image_type_dropdown,
+    operation_dropdown,
+    scale_percent_slider,
+    resize_direction_dropdown,
+    angle_slider,
+    process_button,
+    output_widget
+])
