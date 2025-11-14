@@ -1,0 +1,105 @@
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+
+def display_image(img, title="Image"):
+    cv2.imshow(title, img)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+def contrast_stretch(img):
+    img_min, img_max = np.min(img), np.max(img)
+    if img_max == img_min:
+        return img.copy()
+    return ((img - img_min) * 255.0 / (img_max - img_min)).astype(np.uint8)
+
+def normalize(img):
+    return cv2.normalize(img, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
+
+def equalize(img):
+    if len(img.shape) == 2:
+        return cv2.equalizeHist(img)
+    ycrcb = cv2.cvtColor(img, cv2.COLOR_BGR2YCrCb)
+    ycrcb[:, :, 0] = cv2.equalizeHist(ycrcb[:, :, 0])
+    return cv2.cvtColor(ycrcb, cv2.COLOR_YCrCb2BGR)
+
+def show_all(img):
+    stretched = contrast_stretch(img)
+    normalized = normalize(img)
+    equalized = equalize(img)
+
+    titles = ["Original", "Contrast Stretching", "Normalization", "Equalization"]
+    images = [img, stretched, normalized, equalized]
+
+    plt.figure(figsize=(12, 10))
+
+    for i, (im, title) in enumerate(zip(images, titles)):
+        row = i + 1
+
+        # Display image
+        plt.subplot(4, 2, 2*i + 1)
+        plt.imshow(cv2.cvtColor(im, cv2.COLOR_BGR2RGB))
+        plt.title(title)
+        plt.axis("off")
+
+        # Display histogram
+        plt.subplot(4, 2, 2*i + 2)
+        if title == "Original":
+            plt.plot(cv2.calcHist([im], [0], None, [256], [0, 256]), color='black', label='Original')
+        else:
+            plt.plot(cv2.calcHist([img], [0], None, [256], [0, 256]), color='gray', label='Original')
+            plt.plot(cv2.calcHist([im], [0], None, [256], [0, 256]), color='red', label='Processed')
+        plt.title(f"{title} Histogram")
+        plt.legend()
+
+    plt.tight_layout()
+    plt.show()
+
+def main():
+    img = None
+    while True:
+        print("\nMenu:")
+        print("1. Load Image")
+        print("2. Show Original")
+        print("3. Contrast Stretching")
+        print("4. Normalization")
+        print("5. Histogram Equalization")
+        print("6. Show All (Images + Histograms)")
+        print("7. Exit")
+
+        choice = input("Enter choice (1-7): ")
+
+        if choice == '1':
+            path = input("Enter image path: ")
+            img = cv2.imread(path, cv2.IMREAD_UNCHANGED)
+            if img is None:
+                print("Error loading image.")
+            else:
+                print(f"Loaded: {img.shape}, dtype={img.dtype}")
+
+        elif img is None:
+            print("Load an image first.")
+
+        elif choice == '2':
+            display_image(img, "Original Image")
+
+        elif choice == '3':
+            display_image(contrast_stretch(img), "Contrast Stretched")
+
+        elif choice == '4':
+            display_image(normalize(img), "Normalized")
+
+        elif choice == '5':
+            display_image(equalize(img), "Histogram Equalized")
+
+        elif choice == '6':
+            show_all(img)
+
+        elif choice == '7':
+            print("Exiting.")
+            break
+
+        else:
+            print("Invalid choice.")
+
+main()
